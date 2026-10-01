@@ -15,9 +15,6 @@ function Signup({ user }) {
   const [referralCode] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [showPromoModal, setShowPromoModal] = useState(false);
-  const [generatedCoupon, setGeneratedCoupon] = useState("");
-
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -115,40 +112,6 @@ function Signup({ user }) {
       const { error: walletError } = await supabase.from("wallet").upsert({ user_id: newUser.id, balance: 0 });
       if (walletError) console.error("Wallet Error:", walletError);
 
-      // Generate 40% OFF Coupon for the new user
-      const new40CouponCode = `NEW40_${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-      const { error: newCouponError } = await supabase.from("coupons").insert({
-        coupon_code: new40CouponCode,
-        discount_percentage: 40,
-        discount_amount: 0,
-        is_used: false,
-        phone_number: cleanPhone,
-        is_active: true,
-        service_id: null
-      });
-
-      if (newCouponError) {
-        console.error("40% OFF COUPON INSERT ERROR:", newCouponError);
-      } else {
-        console.log("40% OFF Coupon successfully inserted:", new40CouponCode);
-
-        // Store session claimed 40% offer for immediate checkout
-        sessionStorage.setItem("newUserOffer", JSON.stringify({
-          isNewUserOffer: true,
-          phone: cleanPhone,
-          userName: fullName.trim(),
-          couponCode: new40CouponCode,
-          offerPercentage: 40,
-          claimedAt: new Date().toISOString()
-        }));
-        
-        // If they already clicked a promotional banner, DO NOT remove it.
-        // Payment.jsx prioritizes claimedOffer over newUserOffer.
-        if (!sessionStorage.getItem("claimedOffer")) {
-          sessionStorage.removeItem("claimedOffer");
-        }
-      }
-
       if (referrerId) {
         const { error: refError } = await supabase.from("referrals").insert({
           referrer_id: referrerId,
@@ -173,14 +136,12 @@ function Signup({ user }) {
         }
       }
 
-      setGeneratedCoupon(new40CouponCode);
-      
       if (sessionStorage.getItem("claimedOffer")) {
         toast.success("Account created! Your promotional offer is ready.");
-        navigate("/services");
       } else {
-        setShowPromoModal(true);
+        toast.success("Account created successfully! Welcome to Neatify.");
       }
+      navigate("/services");
     } catch (err) {
       toast.error(err.message || "Registration failed.");
     } finally {
@@ -303,38 +264,6 @@ function Signup({ user }) {
         </div>
       </div>
 
-      {/* POPUP MODAL FOR CLAIM 40% OFF */}
-      {showPromoModal && (
-        <div className="promo-modal-overlay">
-          <div className="promo-modal-card">
-            <div className="promo-modal-badge">🎉</div>
-            <h2 className="promo-modal-title">Claim 40% OFF Unlocked!</h2>
-            <p className="promo-modal-sub">
-              Congratulations! Your new account has been registered. You have unlocked <strong>40% OFF</strong> on your first service booking!
-            </p>
-
-            <div className="promo-coupon-box">
-              <span className="promo-coupon-label">YOUR EXCLUSIVE NEW USER COUPON</span>
-              <div className="promo-coupon-code-row">
-                <span className="promo-coupon-code">{generatedCoupon}</span>
-                <span className="promo-coupon-tag">40% OFF</span>
-              </div>
-              <p className="promo-coupon-note">⚡ 40% discount will be applied automatically at booking!</p>
-            </div>
-
-            <button
-              type="button"
-              className="promo-modal-claim-btn"
-              onClick={() => {
-                setShowPromoModal(false);
-                navigate("/services");
-              }}
-            >
-              Claim 40% OFF & Book Now →
-            </button>
-          </div>
-        </div>
-      )}
 
       <style>{`
         .signup-page-wrapper {

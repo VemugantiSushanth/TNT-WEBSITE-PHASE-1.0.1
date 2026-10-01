@@ -159,32 +159,10 @@ function Login() {
         });
 
         const cleanPhone = phone.replace(/\D/g, "").slice(-10);
-        const new40CouponCode = `NEW40_${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
 
         const promises = [
-          supabase.from("wallet").upsert({ user_id: authUser.id, balance: 0 }),
-          supabase.from("coupons").insert({
-            coupon_code: new40CouponCode,
-            discount_percentage: 40,
-            discount_amount: 0,
-            is_used: false,
-            phone_number: cleanPhone,
-            is_active: true,
-            service_id: null
-          })
+          supabase.from("wallet").upsert({ user_id: authUser.id, balance: 0 })
         ];
-
-        // Store session claimed 40% offer for immediate checkout
-        sessionStorage.setItem("newUserOffer", JSON.stringify({
-          isNewUserOffer: true,
-          phone: cleanPhone,
-          userName: fullName.trim(),
-          couponCode: new40CouponCode,
-          offerPercentage: 40,
-          claimedAt: new Date().toISOString()
-        }));
-
-        sessionStorage.removeItem("claimedOffer");
 
         if (referrerId) {
           const welcomeCouponCode = `WELCOME50_${Math.random().toString(36).substring(2, 6).toUpperCase()}`;

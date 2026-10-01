@@ -299,7 +299,6 @@ export default function Payment({ user }) {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [profilePhone, setProfilePhone] = useState("");
-  const [couponRemovedByUser, setCouponRemovedByUser] = useState(false);
   const [address, setAddress] = useState(location.state?.address || "");
   const [city, setCity] = useState("Hyderabad");
   const [zip, setZip] = useState(location.state?.pincode || "");
@@ -442,7 +441,6 @@ export default function Payment({ user }) {
   // Coupon State
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState(null);
-  const [suggestedCoupon, setSuggestedCoupon] = useState(null);
   const [isVerifyingCoupon, setIsVerifyingCoupon] = useState(false);
   const [couponStatus, setCouponStatus] = useState({ type: "", message: "" });
 
@@ -499,6 +497,8 @@ export default function Payment({ user }) {
         // Auto-apply promotional banner coupon ONLY IF the user originated from the promotional flow
         try {
           const stored = sessionStorage.getItem("claimedOffer");
+          let appliedFromSession = false;
+
           if (stored) {
             const claimedOffer = JSON.parse(stored);
 
@@ -511,6 +511,7 @@ export default function Payment({ user }) {
                 claimedOffer.type === "NEW_USER";
 
               if (isPromotionalSource) {
+                appliedFromSession = true;
                 setAppliedCoupon(prev => {
                   if (!prev) {
                     return {
@@ -533,6 +534,37 @@ export default function Payment({ user }) {
             } else if (claimedOffer && claimedOffer.userId !== user.id) {
               // Clear stale session storage from another user
               sessionStorage.removeItem("claimedOffer");
+            }
+          }
+
+          // Fallback: If session storage was lost (common on iOS/mobile browsers),
+          // recover the selected promotional banner directly from the user's database profile!
+          if (!appliedFromSession && data.promotional_banner_selected) {
+            const { data: bannerData } = await supabase
+              .from("promotional_banners")
+              .select("id, offer_percentage")
+              .eq("id", data.promotional_banner_selected)
+              .single();
+
+            if (bannerData) {
+              setAppliedCoupon(prev => {
+                if (!prev) {
+                  return {
+                    coupon_code: `BANNER${bannerData.offer_percentage}`,
+                    discount_percentage: bannerData.offer_percentage,
+                    discount_amount: null,
+                    bannerId: bannerData.id,
+                    source: "promotional_banner",
+                  };
+                }
+                return prev;
+              });
+              setCouponStatus(prev => {
+                if (!prev || !prev.message) {
+                  return { type: "success", message: `Coupon auto-applied! ${bannerData.offer_percentage}% discount` };
+                }
+                return prev;
+              });
             }
           }
         } catch (e) {
@@ -665,171 +697,13 @@ export default function Payment({ user }) {
     checkPincode();
   }, [zip, selectedServices]);
 
-  // ✅ Automatic Coupon Discovery (Now shows as Suggestion & Auto-applies for New Users)
+  // Clear coupon if phone number doesn't match profile or is cleared (only for manual non-banner coupons)
   useEffect(() => {
-    const fetchSuggestedCoupon = async () => {
-      if (appliedCoupon || isVerifyingCoupon || couponRemovedByUser) return;
-
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-
-        // Check the database directly to avoid React state race conditions during mount
-        if (user) {
-          const { data: profile } = await supabase
-            .from("profile")
-            .select("promotional_banner_selected")
-            .eq("id", user.id)
-            .single();
-
-          // If the user already has a promotional banner selected, they are in the promo flow.
-          // Do NOT auto-apply a generic new-user coupon to their other services.
-          if (profile && profile.promotional_banner_selected) {
-            return;
-          }
-        }
-
-        const cleanPhone = phone ? phone.replace(/\D/g, "").slice(-10) : "";
-        const userEmail = (user && user.email) ? user.email.toLowerCase() : "";
-
-        // Check sessionStorage for saved new user coupon code
-        let sessionCouponCode = null;
-        try {
-          const newUserOfferStr = sessionStorage.getItem("newUserOffer");
-          if (newUserOfferStr) {
-            const parsed = JSON.parse(newUserOfferStr);
-            if (parsed && parsed.couponCode) {
-              sessionCouponCode = parsed.couponCode;
-            }
-          }
-        } catch (e) {
-          console.warn("Error reading newUserOffer session:", e);
-        }
-
-        // Fetch all active, unused coupons
-        const { data: couponList } = await supabase
-          .from("coupons")
-          .select("*")
-          .eq("is_used", false)
-          .eq("is_active", true)
-          .order("created_at", { ascending: false });
-
-        // Find best matching coupon for current user
-        let matched = (couponList || []).find((c) => {
-          // 1. Session coupon code match
-          if (sessionCouponCode && c.coupon_code === sessionCouponCode) return true;
-
-          // 2. Clean phone matching (last 10 digits)
-          const cPhoneDigits = (c.phone_number || "").replace(/\D/g, "").slice(-10);
-          if (cleanPhone && cPhoneDigits && cPhoneDigits === cleanPhone) return true;
-
-          // 3. Email matching
-          if (userEmail && c.phone_number && c.phone_number.toLowerCase() === userEmail) return true;
-
-          // 4. Any NEW40_ coupon created for new users
-          if (c.coupon_code && c.coupon_code.startsWith("NEW40")) return true;
-
-          return false;
-        });
-
-        // 5. Fallback: If no matching coupon was found in DB list, check if user is a new user (0 completed bookings)
-        if (!matched && user) {
-          const { count, error: bookingCheckError } = await supabase
-            .from("bookings")
-            .select("id", { count: "exact", head: true })
-            .eq("user_id", user.id)
-            .in("payment_status", ["paid", "completed"]);
-
-          if (!bookingCheckError && (count === 0 || count === null)) {
-            const autoCode = sessionCouponCode || `NEW40_${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-            matched = {
-              coupon_code: autoCode,
-              discount_percentage: 40,
-              discount_amount: 0,
-              is_used: false,
-              is_active: true,
-              phone_number: cleanPhone
-            };
-          }
-        }
-
-        if (matched) {
-          // If it is a NEW40 coupon from DB, check if user already has completed bookings
-          if (matched.id && matched.coupon_code?.startsWith("NEW40") && user) {
-            const { count, error: bookingCheckError } = await supabase
-              .from("bookings")
-              .select("id", { count: "exact", head: true })
-              .eq("user_id", user.id)
-              .in("payment_status", ["paid", "completed"]);
-
-            if (!bookingCheckError && count > 0) {
-              window.couponDebug = "Found unused NEW40 coupon but user already has completed bookings";
-              setSuggestedCoupon(null);
-              return;
-            }
-          }
-
-          // Verify service restriction if coupon specifies a service_id or service_ids
-          let allowedServiceIds = null;
-          if (matched.service_ids) {
-            if (Array.isArray(matched.service_ids)) {
-              allowedServiceIds = matched.service_ids;
-            } else {
-              try {
-                allowedServiceIds = typeof matched.service_ids === 'string'
-                  ? JSON.parse(matched.service_ids)
-                  : matched.service_ids;
-              } catch (e) {
-                allowedServiceIds = String(matched.service_ids).split(',').map(id => id.trim());
-              }
-            }
-          }
-
-          const hasValidService = selectedServices.some(s => {
-            const serviceIdStr = String(s.id || s.service_id || '');
-            if (matched.service_id && String(matched.service_id) === serviceIdStr) return true;
-            if (allowedServiceIds && allowedServiceIds.some(allowedId => String(allowedId) === serviceIdStr)) return true;
-            return false;
-          });
-
-          const hasRestriction = matched.service_id || (allowedServiceIds && allowedServiceIds.length > 0);
-
-          if (hasRestriction && !hasValidService) {
-            window.couponDebug = "Found unused coupon but service restriction not met: " + matched.coupon_code;
-            setSuggestedCoupon(null);
-          } else {
-            window.couponDebug = "Found matching coupon: " + matched.coupon_code;
-            const norm = {
-              ...matched,
-              discount_percentage: matched.discount_percentage || matched.discount_p || 0,
-              discount_amount: matched.discount_amount || 0
-            };
-            setSuggestedCoupon(norm);
-            setAppliedCoupon(norm);
-            setCouponInput(norm.coupon_code);
-            setCouponStatus({
-              type: "success",
-              message: `Coupon auto-applied! ${norm.discount_amount && norm.discount_amount > 0 ? `₹${norm.discount_amount}` : `${norm.discount_percentage}%`} discount`
-            });
-          }
-        } else {
-          setSuggestedCoupon(null);
-        }
-      } catch (err) {
-        window.couponDebug = "Exception: " + err.message;
-        console.error("Suggested coupon discovery failed:", err);
-      }
-    };
-
-    fetchSuggestedCoupon();
-  }, [phone, appliedCoupon, isVerifyingCoupon, couponRemovedByUser, selectedServices]);
-
-  // Clear coupon if phone number doesn't match profile or is cleared
-  useEffect(() => {
-    if (profilePhone) {
+    if (profilePhone && appliedCoupon && !appliedCoupon.bannerId) {
       const cleanPhone = phone.replace(/\D/g, "").slice(-10);
       const cleanProfilePhone = profilePhone.replace(/\D/g, "").slice(-10);
 
-      if ((!cleanPhone || cleanPhone !== cleanProfilePhone) && appliedCoupon) {
+      if (!cleanPhone || cleanPhone !== cleanProfilePhone) {
         setAppliedCoupon(null);
         setCouponInput("");
         setCouponStatus({ type: "", message: "" });
@@ -841,7 +715,6 @@ export default function Payment({ user }) {
     setAppliedCoupon(null);
     // Keep couponInput as is (don't clear)
     setCouponStatus({ type: "", message: "Coupon disabled" });
-    setCouponRemovedByUser(true);
   };
 
   const handleApplyCoupon = async () => {
@@ -857,7 +730,6 @@ export default function Payment({ user }) {
 
     setIsVerifyingCoupon(true);
     setCouponStatus({ type: "", message: "" });
-    setCouponRemovedByUser(false); // ✅ User is manually attempting to apply, so reset removal flag
 
     try {
       const cleanPhone = phone.replace(/\D/g, "").slice(-10);
@@ -881,22 +753,6 @@ export default function Payment({ user }) {
         if (couponPhone && couponPhone !== cleanPhone) {
           setCouponStatus({ type: "error", message: "This coupon is not valid for your phone number" });
           setAppliedCoupon(null);
-        } else if (data.coupon_code?.startsWith("NEW40")) {
-          // Verify if user already has completed bookings
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user) {
-            const { count, error: bookingCheckError } = await supabase
-              .from("bookings")
-              .select("id", { count: "exact", head: true })
-              .eq("user_id", user.id)
-              .in("payment_status", ["paid", "completed"]);
-
-            if (!bookingCheckError && count > 0) {
-              setCouponStatus({ type: "error", message: "This coupon is only valid for your first booking" });
-              setAppliedCoupon(null);
-              return;
-            }
-          }
         }
 
         {
@@ -1011,10 +867,10 @@ export default function Payment({ user }) {
               targetServiceId = String(claimedOffer.serviceId);
             }
           }
-        } catch (e) {}
+        } catch (e) { }
 
         const isSelectedPromotionalService = (pName && sName && pName === sName) || (targetServiceId && serviceIdStr === targetServiceId);
-        
+
         const isSelectedPromotionalBanner =
           (profileBannerSelected && appliedCoupon.bannerId)
             ? profileBannerSelected === appliedCoupon.bannerId
@@ -1829,25 +1685,6 @@ export default function Payment({ user }) {
                         {isVerifyingCoupon ? "..." : "Apply"}
                       </button>
                     </div>
-                    {suggestedCoupon && (
-                      <div
-                        onClick={() => {
-                          setAppliedCoupon(suggestedCoupon);
-                          setCouponInput(suggestedCoupon.coupon_code);
-                          setCouponStatus({
-                            type: "success",
-                            message: `Coupon applied! ${suggestedCoupon.discount_amount && suggestedCoupon.discount_amount > 0 ? `₹${suggestedCoupon.discount_amount}` : `${suggestedCoupon.discount_percentage}%`} discount`
-                          });
-                          setSuggestedCoupon(null);
-                        }}
-                        style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
-                      >
-                        <span style={{ fontSize: '13px', color: '#94a3b8' }}>🎉 Suggestion:</span>
-                        <span style={{ fontSize: '13px', color: '#facc15', fontWeight: '700', textDecoration: 'underline' }}>
-                          Apply {suggestedCoupon.coupon_code} ({suggestedCoupon.discount_amount && suggestedCoupon.discount_amount > 0 ? `₹${suggestedCoupon.discount_amount} off` : `${suggestedCoupon.discount_percentage}% off`})
-                        </span>
-                      </div>
-                    )}
                   </>
                 )}
                 {couponStatus.message && !appliedCoupon && (
