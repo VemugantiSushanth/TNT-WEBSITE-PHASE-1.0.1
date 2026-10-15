@@ -61,6 +61,32 @@ function PageTransitionLoader() {
 function AppLayout({ user, isRecovery }) {
   const location = useLocation();
   const navigate = useNavigate();
+
+  const [showChecklistSuccess, setShowChecklistSuccess] = useState(false);
+
+  useEffect(() => {
+    if (
+      location.pathname === "/services" &&
+      location.state?.checklistSubmissionSuccess === true
+    ) {
+      setShowChecklistSuccess(true);
+
+      // Clear the navigation signal so the popup
+      // does not appear again after refreshing.
+      navigate(
+        {
+          pathname: location.pathname,
+          search: location.search,
+        },
+        {
+          replace: true,
+          state: null,
+        }
+      );
+    }
+  }, [location.pathname, location.search, location.state, navigate]);
+
+
   const hideFooterRoutes = ["/login", "/signup", "/profile", "/update-password", "/forgot-password", "/new-user"];
 
 
@@ -195,6 +221,99 @@ function AppLayout({ user, isRecovery }) {
       </Routes>
 
       {!hideFooter && <Footer />}
+
+      {showChecklistSuccess && (
+        <div
+          role="presentation"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 999999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+            background: "rgba(0, 0, 0, 0.65)",
+            backdropFilter: "blur(6px)",
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="checklist-success-title"
+            style={{
+              width: "100%",
+              maxWidth: "420px",
+              padding: "36px 28px",
+              background: "#ffffff",
+              borderRadius: "24px",
+              textAlign: "center",
+              boxShadow: "0 24px 60px rgba(0,0,0,0.2)",
+            }}
+          >
+            <div
+              style={{
+                width: "72px",
+                height: "72px",
+                margin: "0 auto 20px",
+                borderRadius: "50%",
+                background: "#dcfce7",
+                color: "#16a34a",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "38px",
+                fontWeight: "bold",
+              }}
+            >
+              ✓
+            </div>
+
+            <h2
+              id="checklist-success-title"
+              style={{
+                fontSize: "23px",
+                fontWeight: "800",
+                color: "#111827",
+                marginBottom: "14px",
+              }}
+            >
+              Checklist Submitted Successfully!
+            </h2>
+
+            <p
+              style={{
+                color: "#64748b",
+                fontSize: "14px",
+                lineHeight: "1.7",
+                marginBottom: "26px",
+              }}
+            >
+              Thank you for verifying the completed service.
+              Your checklist has been saved successfully.
+              Our service partner can now complete the booking.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setShowChecklistSuccess(false)}
+              style={{
+                width: "100%",
+                padding: "14px 20px",
+                background: "#f4c430",
+                border: "none",
+                borderRadius: "12px",
+                color: "#111827",
+                fontSize: "15px",
+                fontWeight: "800",
+                cursor: "pointer",
+              }}
+            >
+              Continue to Home
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { IoAlertCircleOutline, IoClose } from "react-icons/io5";
 import { useNavigate, useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
@@ -7,6 +7,7 @@ import { formatDuration } from "../utils/durationUtils";
 
 import { FiArrowLeft } from "react-icons/fi";
 import { useToast } from "../components/Toast/ToastContext";
+import ServiceChecklist from "../components/ServiceChecklist";
 import "./BookingDetails.css";
 
 const getCurrency = (value) => {
@@ -24,6 +25,42 @@ export default function BookingDetails() {
   const [booking, setBooking] = useState(null);
   const [staffDetails, setStaffDetails] = useState({ name: "", phone: "" });
   const [loading, setLoading] = useState(true);
+
+  // Synchronize booking status from ServiceChecklist Realtime.
+  const handleBookingUpdate = useCallback((updatedBooking) => {
+    setBooking((previous) => {
+      if (!previous || previous.id !== updatedBooking.id) {
+        return previous;
+      }
+
+      return {
+        ...previous,
+        ...updatedBooking,
+      };
+    });
+  }, []);
+
+  // Update the booking details after successful checklist submission.
+  const handleChecklistSuccess = (updatedBooking) => {
+    setBooking((previous) => {
+      if (!previous || previous.id !== updatedBooking.id) {
+        return previous;
+      }
+
+      return {
+        ...previous,
+        ...updatedBooking,
+        checklist_submitted: true,
+      };
+    });
+
+    navigate("/services", {
+      replace: true,
+      state: {
+        checklistSubmissionSuccess: true,
+      },
+    });
+  };
 
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [rating, setRating] = useState(0);
@@ -61,8 +98,8 @@ export default function BookingDetails() {
       }
       // Fallback Rule
       const price = s.price ? parseFloat(String(s.price).replace(/[^\d.]/g, "")) : 0;
-      const isDeepClean = (s.title || "").toLowerCase().includes("deep cleaning") || 
-                          (s.service_type || "").toLowerCase().includes("deep cleaning");
+      const isDeepClean = (s.title || "").toLowerCase().includes("deep cleaning") ||
+        (s.service_type || "").toLowerCase().includes("deep cleaning");
       return sum + ((price >= 2000 || isDeepClean) ? 299 : 99);
     }, 0);
   }, [services]);
@@ -216,6 +253,14 @@ export default function BookingDetails() {
 
   /* HANDLE CANCEL CLICK */
   const handleCancelClick = async () => {
+    if (
+      ["UNDER_REVIEW", "COMPLETED", "CANCELLED", "FAILED"].includes(
+        String(booking?.work_status || "").trim().toUpperCase()
+      )
+    ) {
+      toast.warning("Cancellation is unavailable for this booking.");
+      return;
+    }
     if (!isEligibleToCancel) {
       toast.info("Cancellation is no longer available.");
       return;
@@ -351,10 +396,17 @@ export default function BookingDetails() {
   if (!booking) return <p>No booking found</p>;
 
 
+  const normalizedWorkStatus = String(
+    booking.work_status || ""
+  ).trim().toUpperCase();
+
   const showCancelButton =
-    booking.work_status !== "CANCELLED" &&
-    booking.work_status !== "COMPLETED" &&
-    booking.work_status !== "FAILED" &&
+    ![
+      "CANCELLED",
+      "COMPLETED",
+      "FAILED",
+      "UNDER_REVIEW"
+    ].includes(normalizedWorkStatus) &&
     booking.cancel_requested === false &&
     isEligibleToCancel;
 
@@ -376,8 +428,8 @@ export default function BookingDetails() {
           <div className={isFreeCancellation ? "policy-card-info" : "policy-card-expired"}>
             <IoAlertCircleOutline style={{ fontSize: '18px', flexShrink: 0 }} />
             <p>
-              {isFreeCancellation 
-                ? "You can cancel this booking free of charge up to 6 hours before service." 
+              {isFreeCancellation
+                ? "You can cancel this booking free of charge up to 6 hours before service."
                 : `Cancellation within 6 hours of service incurs a fee (₹${calculatedCancellationFee}).`}
             </p>
           </div>
@@ -494,6 +546,17 @@ export default function BookingDetails() {
           </>
         )}
 
+        {/* ==========================================
+            CUSTOMER SERVICE CHECKLIST
+            Locked until work_status = UNDER_REVIEW
+            ========================================== */}
+
+        <ServiceChecklist
+          key={booking.id}
+          booking={booking}
+          onSuccess={handleChecklistSuccess}
+          onBookingUpdate={handleBookingUpdate}
+        />
 
         <div className="actions-container">
           {showCancelButton && (
@@ -523,7 +586,7 @@ export default function BookingDetails() {
               </div>
 
               <h3>Cancel Booking?</h3>
-              
+
               {/* CANCELLATION SUMMARY */}
               {cancellationDetails && (
                 <div className="fee-summary-card">

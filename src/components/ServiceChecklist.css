@@ -1,0 +1,399 @@
+/* ================================================
+   THE NEATIFY TEAM — SERVICE CHECKLIST
+   File: src/components/ServiceChecklist.css
+   ================================================ */
+
+/* MAIN CHECKLIST CONTAINER */
+
+.service-checklist {
+    width: 100%;
+    box-sizing: border-box;
+    margin: 26px 0;
+    padding: 24px;
+    background: #ffffff;
+    border: 1px solid #e6e9ef;
+    border-radius: 16px;
+    box-shadow: 0 6px 24px rgba(15, 23, 42, 0.045);
+    font-family: inherit;
+}
+
+/* ================================================
+   HEADER
+   ================================================ */
+
+.service-checklist-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 18px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.service-checklist-header h3 {
+    margin: 0 0 8px;
+    font-size: 18px;
+    font-weight: 800;
+    color: #111827;
+    letter-spacing: -0.3px;
+}
+
+.service-checklist-header p {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 400;
+    color: #64748b;
+    line-height: 1.6;
+}
+
+/* ================================================
+   PROGRESS INDICATOR
+   ================================================ */
+
+.service-checklist-progress {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    padding: 7px 13px;
+    background: #ecfdf5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+/* ================================================
+   LOCKED STATE
+   ================================================ */
+
+.service-checklist-locked {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 34px 20px;
+    border: 2px dashed #d1d5db;
+    background: #f8fafc;
+    border-radius: 14px;
+    text-align: center;
+}
+
+.service-checklist-lock-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 58px;
+    height: 58px;
+    margin-bottom: 16px;
+    background: #e5e7eb;
+    border-radius: 50%;
+    font-size: 26px;
+}
+
+.service-checklist-locked h4 {
+    margin: 0 0 9px;
+    font-size: 16px;
+    font-weight: 800;
+    color: #1f2937;
+}
+
+.service-checklist-locked p {
+    max-width: 400px;
+    margin: 0;
+    font-size: 13px;
+    font-weight: 400;
+    color: #64748b;
+    line-height: 1.75;
+}
+
+/* ================================================
+   CHECKLIST ITEMS
+   ================================================ */
+
+.service-checklist-items {
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+}
+
+.service-checklist-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 13px;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 15px 16px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    cursor: pointer;
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.service-checklist-item:hover {
+    background: #fffcf0;
+    border-color: #f4c430;
+}
+
+.service-checklist-item input[type="checkbox"] {
+    width: 19px;
+    height: 19px;
+    margin: 1px 0 0;
+    flex-shrink: 0;
+    accent-color: #16a34a;
+    cursor: pointer;
+}
+
+.service-checklist-item span {
+    flex: 1;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.55;
+    color: #334155;
+}
+
+/* ================================================
+   CHECKED STATE
+   ================================================ */
+
+.service-checklist-item.is-checked {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+}
+
+.service-checklist-item.is-checked span {
+    color: #64748b;
+    text-decoration: line-through;
+    text-decoration-color: #86efac;
+}
+
+.service-checklist-item.is-checked:hover {
+    background: #dcfce7;
+    border-color: #86efac;
+}
+
+/* ================================================
+   SUBMITTED / READ-ONLY STATE
+   ================================================ */
+
+.service-checklist-item.is-submitted {
+    cursor: default;
+    opacity: 0.85;
+}
+
+.service-checklist-item.is-submitted:hover {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+}
+
+.service-checklist-item.is-submitted.is-checked:hover {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+}
+
+.service-checklist-item.is-submitted input[type="checkbox"] {
+    cursor: not-allowed;
+}
+
+/* ================================================
+   SUBMIT BUTTON
+   ================================================ */
+
+.service-checklist-submit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 48px;
+    margin-top: 10px;
+    padding: 13px 20px;
+    background: linear-gradient(135deg, #f4c430, #fde047);
+    color: #111827;
+    border: none;
+    border-radius: 12px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 0.2px;
+    cursor: pointer;
+    transition:
+        background 0.2s ease,
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
+    box-shadow: 0 5px 15px rgba(244, 196, 48, 0.22);
+}
+
+.service-checklist-submit:hover:not(:disabled) {
+    background: linear-gradient(135deg, #eab308, #facc15);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 22px rgba(244, 196, 48, 0.32);
+}
+
+.service-checklist-submit:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.service-checklist-submit:focus-visible {
+    outline: 3px solid rgba(244, 196, 48, 0.55);
+    outline-offset: 3px;
+}
+
+.service-checklist-submit:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
+/* ================================================
+   SUCCESSFULLY SUBMITTED BUTTON
+   ================================================ */
+
+.service-checklist-submit.submitted,
+.service-checklist-submit.submitted:hover {
+    background: #16a34a;
+    color: #ffffff;
+    opacity: 1;
+    box-shadow: 0 5px 16px rgba(22, 163, 74, 0.2);
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ================================================
+   LOADING AND ERROR STATES
+   ================================================ */
+
+.service-checklist-message {
+    padding: 35px 20px;
+    text-align: center;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    color: #64748b;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.service-checklist-error {
+    padding: 16px 18px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 12px;
+    color: #b91c1c;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.6;
+}
+
+/* ================================================
+   TABLET
+   ================================================ */
+
+@media (max-width: 768px) {
+    .service-checklist {
+        margin: 22px 0;
+        padding: 20px;
+    }
+
+    .service-checklist-header {
+        gap: 12px;
+    }
+
+    .service-checklist-header h3 {
+        font-size: 17px;
+    }
+
+    .service-checklist-item {
+        padding: 14px;
+    }
+}
+
+/* ================================================
+   MOBILE
+   ================================================ */
+
+@media (max-width: 480px) {
+    .service-checklist {
+        padding: 16px;
+        margin: 18px 0;
+        border-radius: 14px;
+    }
+
+    .service-checklist-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        padding-bottom: 15px;
+    }
+
+    .service-checklist-header h3 {
+        font-size: 17px;
+        margin-bottom: 6px;
+    }
+
+    .service-checklist-header p {
+        font-size: 12px;
+    }
+
+    .service-checklist-progress {
+        padding: 6px 11px;
+        font-size: 11px;
+    }
+
+    .service-checklist-locked {
+        padding: 28px 14px;
+    }
+
+    .service-checklist-locked h4 {
+        font-size: 15px;
+    }
+
+    .service-checklist-locked p {
+        font-size: 12px;
+    }
+
+    .service-checklist-lock-icon {
+        width: 52px;
+        height: 52px;
+        font-size: 24px;
+    }
+
+    .service-checklist-item {
+        padding: 13px 12px;
+        gap: 11px;
+    }
+
+    .service-checklist-item span {
+        font-size: 12.5px;
+        line-height: 1.6;
+    }
+
+    .service-checklist-item input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+    }
+
+    .service-checklist-submit {
+        min-height: 46px;
+        font-size: 13px;
+        padding: 12px;
+    }
+}
+
+/* ================================================
+   ACCESSIBILITY
+   ================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+
+    .service-checklist-item,
+    .service-checklist-submit {
+        transition: none;
+    }
+}
